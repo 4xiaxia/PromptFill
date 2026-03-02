@@ -22,7 +22,10 @@ const IMAGE_DOMAINS = [
   'i.imgur.com',
   'github.com',
   'raw.githubusercontent.com',
-  // 添加你的图片 CDN 域名
+  // 模板图片 CDN 域名
+  's3.bmp.ovh',
+  's41.ax1x.com',
+  'img.wjwj.top',
 ];
 
 // 检查是否是图片 URL
