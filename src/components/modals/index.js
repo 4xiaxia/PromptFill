@@ -11,3 +11,6 @@ export { ConfirmModal } from './ConfirmModal';
 export { AddTemplateTypeModal } from './AddTemplateTypeModal';
 export { VideoSubTypeModal } from './VideoSubTypeModal';
 export { LinkTemplateModal } from './LinkTemplateModal';
+export { NoticeModal } from './NoticeModal';
+export { ExportTemplatesModal } from './ExportTemplatesModal';
+export { ImageUrlModal } from './ImageUrlModal';

@@ -1,54 +1,31 @@
 /**
- * IndexedDB 存储中心
+ * IndexedDB 存储中心（基于 Dexie.js）
  * 用于突破 LocalStorage 的 5MB 限制，提供更强大的本地存储能力
+ * Dexie.js 提供简洁的 Promise API、自动版本管理和事务支持
  */
 
-const DB_NAME = 'PromptFillDB';
-const DB_VERSION = 2; // 升级版本以包含新的存储对象
-const STORES = {
-  HANDLES: 'handles', // 存储文件系统句柄
-  APP_DATA: 'app_data' // 存储模板、词库等应用数据
-};
+import Dexie from 'dexie';
+
+const db = new Dexie('PromptFillDB');
+
+// 定义数据库结构（版本历史向前兼容）
+db.version(2).stores({
+  handles: '',        // 存储文件系统句柄（key-value，无需索引）
+  app_data: '',       // 存储模板、词库等应用数据（key-value，无需索引）
+});
 
 /**
- * 打开数据库
+ * 兼容旧接口：openDB — 返回 Dexie 实例
+ * 保持与 App.jsx 中直接使用 db 事务的代码兼容
  */
-export const openDB = () => {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
-
-    request.onupgradeneeded = (event) => {
-      const db = event.target.result;
-      
-      // 存储文件系统句柄
-      if (!db.objectStoreNames.contains(STORES.HANDLES)) {
-        db.createObjectStore(STORES.HANDLES);
-      }
-      
-      // 存储应用核心数据 (templates, banks, settings, etc.)
-      if (!db.objectStoreNames.contains(STORES.APP_DATA)) {
-        db.createObjectStore(STORES.APP_DATA);
-      }
-    };
-  });
-};
+export const openDB = async () => db.open().then(() => db);
 
 /**
  * 通用的设置数据方法
  */
 export const dbSet = async (key, value) => {
   try {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction([STORES.APP_DATA], 'readwrite');
-      const store = transaction.objectStore(STORES.APP_DATA);
-      const request = store.put(value, key);
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-    });
+    await db.table('app_data').put(value, key);
   } catch (error) {
     console.error(`IndexedDB Set Error (${key}):`, error);
     // 降级处理：如果 IDB 失败，暂时写入内存（不写 LS，避免溢出）
@@ -60,14 +37,8 @@ export const dbSet = async (key, value) => {
  */
 export const dbGet = async (key, defaultValue = null) => {
   try {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction([STORES.APP_DATA], 'readonly');
-      const store = transaction.objectStore(STORES.APP_DATA);
-      const request = store.get(key);
-      request.onsuccess = () => resolve(request.result !== undefined ? request.result : defaultValue);
-      request.onerror = () => reject(request.error);
-    });
+    const result = await db.table('app_data').get(key);
+    return result !== undefined ? result : defaultValue;
   } catch (error) {
     console.error(`IndexedDB Get Error (${key}):`, error);
     return defaultValue;
@@ -79,14 +50,7 @@ export const dbGet = async (key, defaultValue = null) => {
  */
 export const getDirectoryHandle = async () => {
   try {
-    const db = await openDB();
-    const transaction = db.transaction([STORES.HANDLES], 'readonly');
-    const store = transaction.objectStore(STORES.HANDLES);
-    return new Promise((resolve, reject) => {
-      const request = store.get('directory');
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
+    return await db.table('handles').get('directory') ?? null;
   } catch (error) {
     console.error('获取文件夹句柄失败:', error);
     return null;
@@ -98,10 +62,7 @@ export const getDirectoryHandle = async () => {
  */
 export const saveDirectoryHandle = async (handle) => {
   try {
-    const db = await openDB();
-    const transaction = db.transaction([STORES.HANDLES], 'readwrite');
-    const store = transaction.objectStore(STORES.HANDLES);
-    await store.put(handle, 'directory');
+    await db.table('handles').put(handle, 'directory');
   } catch (error) {
     console.error('保存文件夹句柄失败:', error);
   }
