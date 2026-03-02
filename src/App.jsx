@@ -1,11 +1,9 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
-import { X, Check } from 'lucide-react';
-import html2canvas from 'html2canvas';
 
 // ====== 导入数据配置 ======
-import { INITIAL_TEMPLATES_CONFIG, TEMPLATE_TAGS, SYSTEM_DATA_VERSION, PUBLIC_SHARE_URL } from './data/templates';
+import { INITIAL_TEMPLATES_CONFIG, TEMPLATE_TAGS, SYSTEM_DATA_VERSION } from './data/templates';
 import { INITIAL_BANKS, INITIAL_DEFAULTS, INITIAL_CATEGORIES } from './data/banks';
 
 // ====== 导入常量配置 ======
@@ -15,21 +13,20 @@ import { MASONRY_STYLES } from './constants/masonryStyles';
 import { SMART_SPLIT_CONFIRM_MESSAGE, SMART_SPLIT_CONFIRM_TITLE, SMART_SPLIT_BUTTON_TEXT } from './constants/modalMessages';
 
 // ====== 导入工具函数 ======
-import { waitForImageLoad, getLocalized, getSystemLanguage, compressTemplate, copyToClipboard, saveDirectoryHandle } from './utils';
+import { getLocalized, getSystemLanguage, copyToClipboard, saveDirectoryHandle } from './utils';
 import { mergeTemplatesWithSystem, mergeBanksWithSystem } from './utils/merge';
 import { generateAITerms, polishAndSplitPrompt } from './utils/aiService';  // AI 服务
 import { uploadToICloud, downloadFromICloud } from './utils/icloud'; // iCloud 服务
-import { smartFetch } from './utils/platform'; // 跨平台 fetch
-import { openDB, getDirectoryHandle } from './utils/db'; // IndexedDB 工具
+import { getDirectoryHandle } from './utils/db'; // IndexedDB 工具
 
 // ====== 导入自定义 Hooks ======
-import { useStickyState, useAsyncStickyState, useEditorHistory, useLinkageGroups, useShareFunctions, useTemplateManagement, useServiceWorker } from './hooks';
+import { useStickyState, useAsyncStickyState, useEditorHistory, useLinkageGroups, useShareFunctions, useTemplateManagement, useServiceWorker, useDataSync, useImageExport } from './hooks';
 
 // ====== 导入 UI 组件 ======
-import { PremiumButton, TemplateEditor, TemplatesSidebar, BanksSidebar, InsertVariableModal, AddBankModal, DiscoveryView, MobileSettingsView, SettingsView, Sidebar, TagSidebar } from './components';
+import { TemplateEditor, TemplatesSidebar, BanksSidebar, InsertVariableModal, AddBankModal, DiscoveryView, MobileSettingsView, SettingsView, Sidebar, TagSidebar } from './components';
 import { ImagePreviewModal, SourceAssetModal, AnimatedSlogan, MobileAnimatedSlogan } from './components/preview';
 import { MobileBottomNav } from './components/mobile';
-import { ShareOptionsModal, CopySuccessModal, ImportTokenModal, ShareImportModal, CategoryManagerModal, ConfirmModal, AddTemplateTypeModal, VideoSubTypeModal } from './components/modals';
+import { ShareOptionsModal, CopySuccessModal, ImportTokenModal, ShareImportModal, CategoryManagerModal, ConfirmModal, AddTemplateTypeModal, VideoSubTypeModal, NoticeModal, ExportTemplatesModal, ImageUrlModal } from './components/modals';
 import { DataUpdateNotice, AppUpdateNotice } from './components/notifications';
 
 
@@ -213,7 +210,6 @@ const App = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [activePopover, setActivePopover] = useState(null);
   const [copied, setCopied] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false); // New UI state
   const [isInsertModalOpen, setIsInsertModalOpen] = useState(false); // New UI state for Insert Picker
   const [isCopySuccessModalOpen, setIsCopySuccessModalOpen] = useState(false); // New UI state for Copy Success
@@ -223,9 +219,6 @@ const App = () => {
   const [noticeMessage, setNoticeMessage] = useState(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [selectedExportTemplateIds, setSelectedExportTemplateIds] = useState([]);
-  
-  // 新增：图片 Base64 缓存，用于解决导出时的跨域和稳定性问题
-  const imageBase64Cache = useRef({});
 
   // Add Bank State
   const [isAddingBank, setIsAddingBank] = useState(false);
@@ -343,67 +336,15 @@ const App = () => {
   useServiceWorker();
 
   // ====== 智能多源数据同步逻辑 ======
-  const DATA_SOURCES = {
-    cloud: "https://data.tanshilong.com/data", // 宝塔后端 (最高优先级)
-    static: "/data" // Vercel/本地 静态目录 (同步 Git)
-  };
-
-  useEffect(() => {
-    const syncData = async () => {
-      try {
-        console.log("[Sync] 正在检查数据更新...");
-        
-        // 1. 并行获取各源版本号
-        const results = await Promise.allSettled([
-          smartFetch(`${DATA_SOURCES.cloud}/version.json?t=${Date.now()}`).then(r => r.json()),
-          smartFetch(`${DATA_SOURCES.static}/version.json?t=${Date.now()}`).then(r => r.json())
-        ]);
-
-        let bestSource = null;
-        let maxVersion = lastAppliedDataVersion || SYSTEM_DATA_VERSION;
-
-        // 2. 比对哪个源的版本最新
-        results.forEach((res, index) => {
-          if (res.status === 'fulfilled' && res.value.dataVersion) {
-            // 这里使用简单的字符串比对或版本比对逻辑
-            if (res.value.dataVersion > maxVersion) {
-              maxVersion = res.value.dataVersion;
-              bestSource = index === 0 ? DATA_SOURCES.cloud : DATA_SOURCES.static;
-            }
-          }
-        });
-
-        // 3. 如果发现了更新的版本，执行拉取
-        if (bestSource) {
-          console.log(`[Sync] 发现更新版本 ${maxVersion}，来源: ${bestSource}`);
-          const [tplRes, bankRes] = await Promise.all([
-            smartFetch(`${bestSource}/templates.json`),
-            smartFetch(`${bestSource}/banks.json`)
-          ]);
-
-          if (tplRes.ok && bankRes.ok) {
-            const newTemplates = await tplRes.json();
-            const newBanksData = await bankRes.json();
-
-            // 批量更新状态
-            setTemplates(newTemplates.config || newTemplates);
-            setBanks(newBanksData.banks);
-            setDefaults(newBanksData.defaults);
-            setCategories(newBanksData.categories);
-            setLastAppliedDataVersion(maxVersion);
-            
-            console.log("[Sync] 数据同步成功");
-          }
-        } else {
-          console.log("[Sync] 当前数据已是最新");
-        }
-      } catch (e) {
-        console.warn("[Sync] 同步过程中出现非致命异常:", e.message);
-      }
-    };
-
-    syncData();
-  }, []);
+  useDataSync({
+    lastAppliedDataVersion,
+    SYSTEM_DATA_VERSION,
+    setTemplates,
+    setBanks,
+    setDefaults,
+    setCategories,
+    setLastAppliedDataVersion,
+  });
   // ================================
 
   // 检查系统模版更新
@@ -512,8 +453,7 @@ const App = () => {
           // Try to restore directory handle from IndexedDB
           if (supported && storageMode === 'folder') {
               try {
-                  const db = await openDB();
-                  const handle = await getDirectoryHandle(db);
+                  const handle = await getDirectoryHandle();
                   if (handle) {
                       // Verify permission
                       const permission = await handle.queryPermission({ mode: 'readwrite' });
@@ -539,7 +479,7 @@ const App = () => {
   // ====== 数据迁移与初始化 ======
   useEffect(() => {
     async function migrateAndInit() {
-      const { isMigrated, markMigrated, dbSet, openDB, getDirectoryHandle } = await import('./utils/db');
+      const { isMigrated, markMigrated, dbSet, getDirectoryHandle: getHandle } = await import('./utils/db');
       
       if (!isMigrated()) {
         console.log('检测到旧版 LocalStorage 数据，开始执行 IndexedDB 迁移...');
@@ -571,8 +511,7 @@ const App = () => {
       }
 
       // 重新恢复文件夹句柄
-      const db = await openDB();
-      const handle = await getDirectoryHandle(db);
+      const handle = await getHandle();
       if (handle) {
         setDirectoryHandle(handle);
         // 验证权限
@@ -649,35 +588,6 @@ const App = () => {
       }
     }));
   }, [setBanks]);
-
-  // 新增：静默预缓存当前模板图片，提升导出体验
-  useEffect(() => {
-    if (!activeTemplate || !activeTemplate.imageUrl || !activeTemplate.imageUrl.startsWith('http')) return;
-    
-    const url = activeTemplate.imageUrl;
-    if (imageBase64Cache.current[url]) return;
-
-    const preCache = async () => {
-        try {
-            const response = await fetch(url);
-            if (response.ok) {
-                const blob = await response.blob();
-                const base64 = await new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => resolve(reader.result);
-                    reader.readAsDataURL(blob);
-                });
-                imageBase64Cache.current[url] = base64;
-            }
-        } catch (e) {
-            // 静默失败，导出时会尝试代理
-        }
-    };
-    
-    // 稍微延迟，避免抢占初始渲染资源
-    const timer = setTimeout(preCache, 2000);
-    return () => clearTimeout(timer);
-  }, [activeTemplate?.imageUrl]);
 
   // 动态更新 SEO 标题和描述
   useEffect(() => {
@@ -808,6 +718,30 @@ const App = () => {
     setNoticeMessage(shareImportError);
     setShareImportError(null);
   }, [shareImportError, setShareImportError]);
+
+  // 4. 图片导出 Hook
+  const {
+    isExporting,
+    preCacheImage,
+    handleExportImage,
+  } = useImageExport({
+    activeTemplate,
+    activeTemplateId,
+    banks,
+    categories,
+    language,
+    INITIAL_TEMPLATES_CONFIG,
+    getShortCodeFromServer,
+    setNoticeMessage,
+  });
+
+  // 静默预缓存当前模板图片（提升导出体验）
+  useEffect(() => {
+    if (activeTemplate?.imageUrl) {
+      const timer = setTimeout(() => preCacheImage(activeTemplate.imageUrl), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTemplate?.imageUrl, preCacheImage]);
 
   // Template Management
   const templateManagement = useTemplateManagement(
@@ -2079,10 +2013,9 @@ const App = () => {
       
       // Clear directory handle from IndexedDB
       try {
-          const db = await openDB();
-          const transaction = db.transaction(['handles'], 'readwrite');
-          const store = transaction.objectStore('handles');
-          await store.delete('directory');
+          const { openDB: getDb } = await import('./utils/db');
+          const dexieDb = await getDb();
+          await dexieDb.table('handles').delete('directory');
       } catch (error) {
           console.error('清除文件夹句柄失败:', error);
       }
@@ -2263,471 +2196,6 @@ const App = () => {
     });
   };
 
-  const handleExportImage = async () => {
-    const element = document.getElementById('preview-card');
-    if (!element) return;
-
-    setIsExporting(true);
-    
-    // --- 新增：尝试获取短链接并预处理二维码 ---
-    // 导出长图时，水印链接优先使用正式域名，避免显示 localhost
-    let displayUrl = PUBLIC_SHARE_URL || (window.location.origin + window.location.pathname);
-    if (!displayUrl || displayUrl.includes('localhost') || displayUrl.includes('127.0.0.1')) {
-        displayUrl = "https://aipromptfill.com";
-    }
-    
-    let qrContentUrl = "https://aipromptfill.com"; // 默认官网地址
-    let qrBase64 = "/QRCode.png";
-    
-    try {
-        const compressed = compressTemplate(activeTemplate, banks, categories);
-        // 尝试向服务器换取短码
-        const shortCode = await getShortCodeFromServer(compressed);
-        const base = PUBLIC_SHARE_URL || displayUrl;
-        const normalizedBase = base.endsWith('/') ? base.slice(0, -1) : base;
-        
-        if (shortCode) {
-            // 成功获取短码，二维码和文字都指向短链接
-            const shortUrl = `${normalizedBase}/#/share?share=${shortCode}`;
-            displayUrl = shortUrl;
-            qrContentUrl = shortUrl;
-        } else if (compressed) {
-            // 未获取到短码（长链接情况），文字显示长链接，但二维码指向官网
-            displayUrl = `${normalizedBase}/#/share?share=${compressed}`;
-            qrContentUrl = "https://aipromptfill.com";
-        }
-        
-        // 生成二维码 Base64 (避免跨域问题)
-        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data=${encodeURIComponent(qrContentUrl)}`;
-        const qrResponse = await fetch(qrApiUrl);
-        if (qrResponse.ok) {
-            const qrBlob = await qrResponse.blob();
-            qrBase64 = await new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result);
-                reader.readAsDataURL(qrBlob);
-            });
-        }
-    } catch (e) {
-        console.warn("获取短链接或二维码失败:", e);
-    }
-    
-    // 如果是极长的链接（超过 150 字符），进行截断显示，防止撑破布局
-    // 但在导出 DOM 中我们要确保它能换行
-    const displayUrlText = displayUrl.length > 150 
-        ? displayUrl.substring(0, 140) + '...' 
-        : displayUrl;
-    
-    // --- 关键修复：预处理图片为 Base64 ---
-    // 这能彻底解决 html2canvas 的跨域 (CORS) 和图片加载不全问题
-    const templateDefault = INITIAL_TEMPLATES_CONFIG.find(t => t.id === activeTemplateId);
-    const originalImageSrc = activeTemplate.imageUrl || templateDefault?.imageUrl || "";
-    let tempBase64Src = imageBase64Cache.current[originalImageSrc] || null;
-    const imgElement = element.querySelector('img');
-
-    if (imgElement && originalImageSrc) {
-        // 如果当前 img 没有正确的 src，先补上默认 src
-        if (!imgElement.src || imgElement.src.trim() === "" || imgElement.src.includes("data:image") === false) {
-          imgElement.src = originalImageSrc;
-        }
-    }
-
-    // 如果没缓存，尝试获取
-    if (!tempBase64Src && imgElement && originalImageSrc && originalImageSrc.startsWith('http')) {
-        const fetchWithRetry = async (url) => {
-            try {
-                const response = await fetch(url);
-                if (!response.ok) throw new Error('Fetch failed');
-                const blob = await response.blob();
-                return await new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => resolve(reader.result);
-                    reader.readAsDataURL(blob);
-                });
-            } catch (e) {
-                return null;
-            }
-        };
-
-        try {
-            // 1. 尝试直接获取
-            tempBase64Src = await fetchWithRetry(originalImageSrc);
-            
-            // 2. 如果失败，尝试使用 weserv.nl 作为 CORS 代理
-            if (!tempBase64Src) {
-                console.log("直接获取图片失败，尝试使用代理...");
-                const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(originalImageSrc)}`;
-                tempBase64Src = await fetchWithRetry(proxyUrl);
-            }
-
-            if (tempBase64Src) {
-                // 存入缓存
-                imageBase64Cache.current[originalImageSrc] = tempBase64Src;
-            }
-        } catch (e) {
-            console.warn("图片 Base64 转换失败", e);
-        }
-    }
-
-    if (tempBase64Src && imgElement) {
-        // 临时替换为 Base64
-        imgElement.src = tempBase64Src;
-        await waitForImageLoad(imgElement);
-    } else if (imgElement) {
-        // 即便没转 base64，也要确保当前展示图已加载完成
-        await waitForImageLoad(imgElement);
-    }
-
-    // --- 关键修复：预处理图片为 Base64 ---
-
-
-
-    try {
-        // 创建一个临时的导出容器
-        const exportContainer = document.createElement('div');
-        exportContainer.id = 'export-container-temp';
-        exportContainer.style.position = 'fixed';
-        exportContainer.style.left = '-99999px';
-        exportContainer.style.top = '0';
-        exportContainer.style.width = '900px'; // 修改宽度：860px卡片 + 20px*2边距
-        exportContainer.style.minHeight = '800px';
-        exportContainer.style.padding = '20px'; // 橙色背景距离卡片四周各20px
-        exportContainer.style.background = '#fafafa';
-        exportContainer.style.display = 'flex';
-        exportContainer.style.alignItems = 'center';
-        exportContainer.style.justifyContent = 'center';
-        document.body.appendChild(exportContainer);
-        
-        // 创建橙色渐变背景层
-        const bgLayer = document.createElement('div');
-        bgLayer.style.position = 'absolute';
-        bgLayer.style.inset = '0';
-        bgLayer.style.background = 'linear-gradient(180deg, #F08F62 0%, #EB7A54 100%)';
-        bgLayer.style.zIndex = '0';
-        exportContainer.appendChild(bgLayer);
-        
-        // 克隆 preview-card
-        const clonedCard = element.cloneNode(true);
-        clonedCard.style.position = 'relative';
-        clonedCard.style.zIndex = '10';
-        clonedCard.style.background = 'rgba(255, 255, 255, 0.98)';
-        clonedCard.style.borderRadius = '24px';
-        clonedCard.style.boxShadow = '0 8px 32px -4px rgba(0, 0, 0, 0.12), 0 4px 16px -2px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05)'; // 更细腻的多层阴影
-        clonedCard.style.border = '1px solid rgba(255, 255, 255, 0.8)';
-        clonedCard.style.padding = '40px 45px';
-        clonedCard.style.margin = '0 auto';
-        clonedCard.style.width = '860px'; // 修改宽度：固定卡片宽度为860px
-        clonedCard.style.boxSizing = 'border-box';
-        clonedCard.style.fontFamily = '"PingFang SC", "Microsoft YaHei", sans-serif';
-        clonedCard.style.webkitFontSmoothing = 'antialiased';
-        exportContainer.appendChild(clonedCard);
-        
-        const canvas = await html2canvas(exportContainer, {
-            scale: 2.0, // 适中的分辨率，640px容器输出1280px宽度
-            useCORS: true,
-            allowTaint: true,
-            backgroundColor: '#ffffff',
-            logging: false,
-            onclone: (clonedDoc) => {
-                const clonedElement = clonedDoc.getElementById('export-container-temp');
-                if (clonedElement) {
-                   const card = clonedElement.querySelector('#preview-card');
-                   if (!card) return;
-
-                   // 获取原始数据
-                   const originalImg = card.querySelector('img');
-                   const imgSrc = tempBase64Src || (originalImg ? originalImg.src : '');
-                   const titleElement = card.querySelector('h2');
-                   const titleText = titleElement ? titleElement.textContent.trim() : getLocalized(activeTemplate.name, language);
-                   const contentElement = card.querySelector('#final-prompt-content');
-                   const contentHTML = contentElement ? contentElement.innerHTML : '';
-                   
-                   console.log('正文内容获取:', contentHTML ? '成功' : '失败', contentHTML.length);
-                   
-                   // 获取版本号（动态从原始DOM）
-                   const metaContainer = card.querySelector('.flex.flex-wrap.gap-2');
-                   const versionElement = metaContainer ? metaContainer.querySelector('.bg-orange-50') : null;
-                   const versionText = versionElement ? versionElement.textContent.trim() : '';
-                   
-                   // 清空卡片内容
-                   card.innerHTML = '';
-                   
-                   // --- 1. 图片区域（顶部，保持原始宽高比不裁切）---
-                   if (imgSrc) {
-                       const imgContainer = clonedDoc.createElement('div');
-                       imgContainer.style.width = '100%';
-                       imgContainer.style.marginBottom = '30px';
-                       imgContainer.style.display = 'flex';
-                       imgContainer.style.justifyContent = 'center';
-                       imgContainer.style.alignItems = 'center';
-                       
-                       const img = clonedDoc.createElement('img');
-                       img.src = imgSrc;
-                       img.style.width = '100%'; // 充分利用卡片宽度
-                       img.style.height = 'auto'; // 高度自动，保持原始宽高比
-                       img.style.objectFit = 'contain'; // 包含模式，不裁切图片
-                       img.style.borderRadius = '12px'; // 加入圆角
-                       img.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
-                       img.style.boxSizing = 'border-box';
-                       
-                       imgContainer.appendChild(img);
-                       card.appendChild(imgContainer);
-                   }
-                   
-                   // --- 2. 标题区域（无版本号、无标签）---
-                   const titleContainer = clonedDoc.createElement('div');
-                   titleContainer.style.marginBottom = '25px';
-                   
-                   const title = clonedDoc.createElement('h2');
-                   title.textContent = titleText;
-                   title.style.fontSize = '32px'; // 恢复原状
-                   title.style.fontWeight = '700';
-                   title.style.color = '#1f2937';
-                   title.style.margin = '0';
-                   title.style.lineHeight = '1.2';
-                   
-                   titleContainer.appendChild(title);
-                   card.appendChild(titleContainer);
-                   
-                   // --- 3. 正文区域（不重复标题）---
-                   if (contentHTML) {
-                       const contentContainer = clonedDoc.createElement('div');
-                       contentContainer.innerHTML = contentHTML;
-                       contentContainer.style.fontSize = '18px'; // 恢复原状
-                       contentContainer.style.lineHeight = '1.8';
-                       contentContainer.style.color = '#374151'; // 默认正文颜色
-                       contentContainer.style.marginBottom = '40px';
-                       
-                       // 强制修复所有子元素的颜色（防止 DarkMode 下的类名干扰）
-                       // 1. 修复标题颜色
-                       const headers = contentContainer.querySelectorAll('h3');
-                       headers.forEach(h => {
-                           h.style.color = '#111827'; // 对应 Lightmode 的 text-gray-900
-                           h.style.borderBottom = '1px solid #f3f4f6'; // 对应 border-gray-100
-                       });
-
-                       // 2. 修复普通文本和列表项颜色
-                       const divs = contentContainer.querySelectorAll('div, p, span');
-                       divs.forEach(d => {
-                           // 排除胶囊组件，胶囊有自己的处理逻辑
-                           if (!d.hasAttribute('data-export-pill')) {
-                               d.style.color = '#374151'; // 对应 text-gray-700
-                           }
-                       });
-
-                       // 3. 修复加粗文本颜色
-                       const strongs = contentContainer.querySelectorAll('strong');
-                       strongs.forEach(s => {
-                           s.style.color = '#111827';
-                       });
-
-                       // 4. 修复列表打点和数字颜色
-                       const secondaryTexts = contentContainer.querySelectorAll('.mt-2\\.5, .font-mono');
-                       secondaryTexts.forEach(st => {
-                           st.style.color = '#9ca3af'; // 对应 Lightmode 的 text-gray-400
-                       });
-                       
-                       // 修复胶囊样式 - 使用更精确的属性选择器
-                       const variables = contentContainer.querySelectorAll('[data-export-pill="true"]');
-                       variables.forEach(v => {
-                           // 优化父级容器（如果是 Variable 组件的 wrapper）
-                           if (v.parentElement && v.parentElement.classList.contains('inline-block')) {
-                               v.parentElement.style.display = 'inline';
-                               v.parentElement.style.margin = '0';
-                           }
-
-                           // 保留原有的背景色和文字颜色，只优化布局
-                           v.style.display = 'inline-flex';
-                           v.style.alignItems = 'center';
-                           v.style.justifyContent = 'center';
-                           v.style.padding = '4px 12px'; // 恢复原状
-                           v.style.margin = '2px 4px';
-                           v.style.borderRadius = '6px'; // 恢复原状
-                           v.style.fontSize = '17px'; // 恢复原状
-                           v.style.fontWeight = '600';
-                           v.style.lineHeight = '1.5';
-                           v.style.verticalAlign = 'middle';
-                           v.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-                           v.style.color = '#ffffff'; // 确保彩色胶囊文字是白色
-                           v.style.border = 'none'; // 导出时去掉半透明边框，减少干扰
-                           
-                           // 如果是未定义变量的占位符（背景较浅），恢复其深色文字
-                           if (v.textContent.includes('[') && v.textContent.includes('?]')) {
-                               v.style.color = '#9ca3af'; 
-                               v.style.background = '#f8fafc';
-                               v.style.border = '1px solid #e2e8f0';
-                           }
-                       });
-                       
-                       card.appendChild(contentContainer);
-                   }
-                   
-                   // --- 4. 底部水印区域 ---
-                   const footer = clonedDoc.createElement('div');
-                   footer.style.marginTop = '40px';
-                   footer.style.paddingTop = '25px';
-                   footer.style.paddingBottom = '15px';
-                   footer.style.borderTop = '2px solid #e2e8f0';
-                   footer.style.display = 'flex';
-                   footer.style.justifyContent = 'space-between';
-                   footer.style.alignItems = 'center';
-                   footer.style.fontFamily = 'sans-serif';
-                   
-                   footer.innerHTML = `
-                       <div style="flex: 1; padding-right: 20px;">
-                           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;">
-                               <div style="font-size: 15px; font-weight: 600; color: #1f2937;">
-                                   Generated by <span style="color: #6366f1; font-weight: 700;">Prompt Fill</span>
-                               </div>
-                               ${versionText ? `<span style="font-size: 11px; padding: 3px 10px; background: #fff7ed; color: #f97316; border-radius: 5px; font-weight: 600; border: 1px solid #fed7aa;">${versionText}</span>` : ''}
-                           </div>
-                           <div style="font-size: 12px; color: #6b7280; margin-bottom: 6px; font-weight: 500;">提示词填空器 - 让分享更简单</div>
-                           <div style="font-size: 11px; color: #3b82f6; font-weight: 500; background: #eff6ff; padding: 4px 10px; border-radius: 6px; display: block; letter-spacing: 0.3px; word-break: break-all; max-width: 100%; min-height: 14px; line-height: 1.4;">
-                               ${displayUrlText}
-                           </div>
-                       </div>
-                       <div style="display: flex; align-items: center;">
-                           <div style="text-align: center;">
-                               <img src="${qrBase64}" 
-                                    style="width: 85px; height: 85px; border: 3px solid #e2e8f0; border-radius: 8px; display: block; background: white;" 
-                                    alt="QR Code" />
-                               <div style="font-size: 9px; color: #94a3b8; margin-top: 4px; font-weight: 500;">扫码体验</div>
-                           </div>
-                       </div>
-                   `;
-                   
-                   card.appendChild(footer);
-                   console.log('新布局已应用');
-                }
-            }
-        });
-
-        // 使用 JPG 格式，质量 0.92（高质量同时节省空间）
-        const image = canvas.toDataURL('image/jpeg', 0.92);
-        const activeTemplateName = getLocalized(activeTemplate.name, language);
-        const filename = `${activeTemplateName.replace(/\s+/g, '_')}_prompt.jpg`;
-        
-        // 检测是否为移动设备和iOS
-        const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
-        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-        
-        if (isMobileDevice) {
-            // 移动端：尝试使用 Web Share API 保存到相册
-            try {
-                // 将 base64 转换为 blob
-                const base64Response = await fetch(image);
-                const blob = await base64Response.blob();
-                const file = new File([blob], filename, { type: 'image/jpeg' });
-                
-                // 检查是否支持 Web Share API（iOS 13+支持）
-                if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-                    await navigator.share({
-                        files: [file],
-                        title: activeTemplateName,
-                        text: '导出的提示词模板'
-                    });
-                    setNoticeMessage('✅ 图片已分享，请选择"存储图像"保存到相册');
-                } else {
-                    // 降级方案：对于iOS，打开新标签页显示图片
-                    if (isIOS) {
-                        // iOS特殊处理：在新窗口打开图片，用户可以长按保存
-                        const newWindow = window.open();
-                        if (newWindow) {
-                            newWindow.document.write(`
-                                <html>
-                                <head>
-                                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                                    <title>${activeTemplateName}</title>
-                                    <style>
-                                        body { margin: 0; padding: 20px; background: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-                                        img { max-width: 100%; height: auto; }
-                                        .tip { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(255,255,255,0.95); padding: 12px 20px; border-radius: 8px; color: #333; font-size: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 1000; }
-                                    </style>
-                                </head>
-                                <body>
-                                    <div class="tip">长按图片保存到相册 📱</div>
-                                    <img src="${image}" alt="${activeTemplateName}" />
-                                </body>
-                                </html>
-                            `);
-                            setNoticeMessage('✅ 请在新页面长按图片保存');
-                        } else {
-                            // 如果无法打开新窗口，尝试下载
-                            const link = document.createElement('a');
-                            link.href = image;
-                            link.download = filename;
-                            link.target = '_blank';
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                            setNoticeMessage('✅ 图片已导出，请在新页面保存');
-                        }
-                    } else {
-                        // 安卓等其他移动设备：触发下载
-                        const link = document.createElement('a');
-                        link.href = image;
-                        link.download = filename;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                        setNoticeMessage('✅ 图片已保存到下载文件夹');
-                    }
-                }
-            } catch (shareError) {
-                console.log('Share failed:', shareError);
-                // 最终降级方案
-                if (isIOS) {
-                    // iOS最终方案：打开新标签页
-                    const newWindow = window.open();
-                    if (newWindow) {
-                        newWindow.document.write(`
-                            <html>
-                            <head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${activeTemplateName}</title></head>
-                            <body style="margin:0;padding:20px;background:#000;text-align:center;">
-                                <p style="color:#fff;margin-bottom:20px;">长按图片保存到相册 📱</p>
-                                <img src="${image}" style="max-width:100%;height:auto;" />
-                            </body>
-                            </html>
-                        `);
-                    }
-                    setNoticeMessage('⚠️ 请在新页面长按图片保存');
-                } else {
-                    const link = document.createElement('a');
-                    link.href = image;
-                    link.download = filename;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    setNoticeMessage('✅ 图片已保存');
-                }
-            }
-        } else {
-            // 桌面端：直接下载
-            const link = document.createElement('a');
-            link.href = image;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            setNoticeMessage('✅ 图片导出成功！');
-        }
-    } catch (err) {
-        console.error("Export failed:", err);
-        setNoticeMessage('❌ 导出失败，请重试');
-    } finally {
-        // 清理临时容器
-        const tempContainer = document.getElementById('export-container-temp');
-        if (tempContainer) {
-            document.body.removeChild(tempContainer);
-        }
-        
-        // 恢复原始图片 src
-        if (imgElement && originalImageSrc) {
-            imgElement.src = originalImageSrc;
-        }
-        setIsExporting(false);
-    }
-  };
 
   // 移动端模拟拖拽处理器
   const onTouchDragStart = (key, x, y) => {
@@ -3119,75 +2587,19 @@ const App = () => {
               setIsBanksDrawerOpen={setIsBanksDrawerOpen}
             />
 
-            {/* Image/Video URL Input Modal - 保持在 TemplateEditor 外部 */}
-            {showImageUrlInput && (
-              <div
-                className="fixed inset-0 z-[1000] bg-black/40 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300"
-                onClick={() => { setShowImageUrlInput(false); setImageUrlInput(""); }}
-              >
-                <div
-                  className={`w-full max-w-sm rounded-[32px] shadow-2xl overflow-hidden border animate-scale-up ${isDarkMode ? 'bg-[#242120] border-white/5' : 'bg-white border-gray-100'}`}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="p-8 relative">
-                    <button
-                      onClick={() => { setShowImageUrlInput(false); setImageUrlInput(""); }}
-                      className={`absolute top-6 right-6 p-2 rounded-full transition-all ${isDarkMode ? 'text-gray-500 hover:text-white hover:bg-white/5' : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100'}`}
-                    >
-                      <X size={20} />
-                    </button>
 
-                    <h3 className={`text-xl font-black mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {activeTemplate?.type === 'video' 
-                        ? (language === 'cn' ? '视频链接' : 'Video URL')
-                        : (language === 'cn' ? '图片链接' : 'Image URL')}
-                    </h3>
-                    <p className={`text-xs font-bold mb-6 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                      {activeTemplate?.type === 'video'
-                        ? (language === 'cn' ? '请输入视频的在线地址' : 'Please enter the online video URL')
-                        : (language === 'cn' ? '请输入图片的在线地址' : 'Please enter the online image URL')}
-                    </p>
-                    
-                    <div className="space-y-6">
-                      <div className={`premium-search-container group ${isDarkMode ? 'dark' : 'light'} !rounded-2xl`}>
-                        <input
-                          autoFocus
-                          type="text"
-                          value={imageUrlInput}
-                          onChange={(e) => setImageUrlInput(e.target.value)}
-                          placeholder={activeTemplate?.type === 'video'
-                            ? (language === 'cn' ? '输入视频 URL 地址...' : 'Enter video URL...')
-                            : t('image_url_placeholder')}
-                          className={`
-                            w-full px-5 py-4 text-xs font-mono outline-none bg-transparent
-                            ${isDarkMode ? 'text-gray-300 placeholder:text-gray-700' : 'text-gray-700 placeholder:text-gray-400'}
-                          `}
-                          onKeyDown={(e) => e.key === 'Enter' && handleSetImageUrl()}
-                        />
-                      </div>
-
-                      <PremiumButton
-                        onClick={handleSetImageUrl}
-                        disabled={!imageUrlInput.trim()}
-                        isDarkMode={isDarkMode}
-                        className="w-full size-lg"
-                        icon={Check}
-                        justify="start"
-                      >
-                        <div className="flex flex-col items-start ml-2 text-left">
-                          <span className="text-sm font-black">
-                            {t('use_url')}
-                          </span>
-                          <span className={`text-[10px] font-bold opacity-50`}>
-                            {language === 'cn' ? '确认并应用此链接' : 'Confirm and apply this link'}
-                          </span>
-                        </div>
-                      </PremiumButton>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Image/Video URL Input Modal */}
+            <ImageUrlModal
+              isOpen={showImageUrlInput}
+              onClose={() => { setShowImageUrlInput(false); setImageUrlInput(''); }}
+              imageUrlInput={imageUrlInput}
+              setImageUrlInput={setImageUrlInput}
+              onConfirm={handleSetImageUrl}
+              templateType={activeTemplate?.type}
+              t={t}
+              language={language}
+              isDarkMode={isDarkMode}
+            />
 
             <BanksSidebar 
               mobileTab={mobileTab}
@@ -3354,43 +2766,12 @@ const App = () => {
       )}
 
       {/* --- Notice Modal --- */}
-      {noticeMessage && (
-        <div
-          className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300"
-          onClick={() => setNoticeMessage(null)}
-        >
-          <div
-            className={`w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border animate-in slide-in-from-bottom-4 duration-300 ${isDarkMode ? 'bg-[#1C1917] border-white/10' : 'bg-white border-gray-100'}`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className={`p-6 flex justify-between items-center ${isDarkMode ? 'bg-white/[0.02]' : 'bg-gray-50/50'}`}>
-              <h3 className={`font-black text-lg tracking-tight ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-                {language === 'cn' ? '提示' : 'Notice'}
-              </h3>
-              <button
-                onClick={() => setNoticeMessage(null)}
-                className={`p-2 rounded-xl transition-all ${isDarkMode ? 'hover:bg-white/10 text-gray-500 hover:text-gray-300' : 'hover:bg-gray-100 text-gray-400 hover:text-gray-600'}`}
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-8">
-              <p className={`text-base font-medium leading-relaxed whitespace-pre-line ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                {noticeMessage}
-              </p>
-            </div>
-            <div className={`p-6 flex justify-end ${isDarkMode ? 'bg-white/[0.02]' : 'bg-gray-50/50'}`}>
-              <PremiumButton
-                onClick={() => setNoticeMessage(null)}
-                isDarkMode={isDarkMode}
-                className="!h-11 !rounded-2xl min-w-[100px]"
-              >
-                <span className="text-sm font-bold px-4">{language === 'cn' ? '知道了' : 'OK'}</span>
-              </PremiumButton>
-            </div>
-          </div>
-        </div>
-      )}
+      <NoticeModal
+        message={noticeMessage}
+        onClose={() => setNoticeMessage(null)}
+        language={language}
+        isDarkMode={isDarkMode}
+      />
 
       {/* --- Share Import Loading --- */}
       {isImportingShare && (
@@ -3410,95 +2791,19 @@ const App = () => {
       )}
 
       {/* --- Export Templates Modal --- */}
-      {isExportModalOpen && (
-        <div
-          className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300"
-          onClick={() => setIsExportModalOpen(false)}
-        >
-          <div
-            className={`w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border animate-in slide-in-from-bottom-4 duration-300 ${isDarkMode ? 'bg-[#1C1917] border-white/10' : 'bg-white border-gray-100'}`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className={`p-6 flex justify-between items-center ${isDarkMode ? 'bg-white/[0.02]' : 'bg-gray-50/50'}`}>
-              <h3 className={`font-black text-lg tracking-tight ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-                {language === 'cn' ? '导出模版' : 'Export Templates'}
-              </h3>
-              <button
-                onClick={() => setIsExportModalOpen(false)}
-                className={`p-2 rounded-xl transition-all ${isDarkMode ? 'hover:bg-white/10 text-gray-500 hover:text-gray-300' : 'hover:bg-gray-100 text-gray-400 hover:text-gray-600'}`}
-              >
-                <X size={20} />
-              </button>
-            </div>
+      <ExportTemplatesModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        userTemplates={userTemplates}
+        selectedIds={selectedExportTemplateIds}
+        onToggleId={toggleExportTemplateId}
+        onToggleAll={toggleExportSelectAll}
+        onExport={handleExportAllTemplates}
+        language={language}
+        isDarkMode={isDarkMode}
+      />
 
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <span className={`text-sm font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {language === 'cn' ? '仅导出个人模版（系统模版不可选）' : 'Only user templates can be exported'}
-                </span>
-                <button
-                  onClick={toggleExportSelectAll}
-                  className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-orange-400' : 'text-orange-600'}`}
-                >
-                  {selectedExportTemplateIds.length === userTemplates.length
-                    ? (language === 'cn' ? '取消全选' : 'Clear')
-                    : (language === 'cn' ? '全选' : 'Select All')}
-                </button>
-              </div>
-
-              <div className={`max-h-[50vh] overflow-y-auto rounded-2xl border ${isDarkMode ? 'border-white/5 bg-white/5' : 'border-gray-100 bg-gray-50'}`}>
-                {userTemplates.map((tpl) => {
-                  const checked = selectedExportTemplateIds.includes(tpl.id);
-                  return (
-                    <label
-                      key={tpl.id}
-                      className={`flex items-center gap-3 px-4 py-3 border-b last:border-b-0 cursor-pointer ${isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-100 hover:bg-white'}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleExportTemplateId(tpl.id)}
-                        className="accent-orange-500"
-                      />
-                      <div className="flex flex-col min-w-0">
-                        <span className={`text-sm font-bold truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-                          {getLocalized(tpl.name, language)}
-                        </span>
-                        <span className={`text-[10px] font-bold opacity-60 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                          {tpl.author || 'PromptFill User'}
-                        </span>
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className={`p-6 flex gap-3 justify-end ${isDarkMode ? 'bg-white/[0.02]' : 'bg-gray-50/50'}`}>
-              <PremiumButton
-                onClick={() => setIsExportModalOpen(false)}
-                isDarkMode={isDarkMode}
-                className="!h-11 !rounded-2xl min-w-[100px]"
-              >
-                <span className="text-sm font-bold px-4">{language === 'cn' ? '取消' : 'Cancel'}</span>
-              </PremiumButton>
-              <PremiumButton
-                onClick={async () => {
-                  await handleExportAllTemplates(selectedExportTemplateIds);
-                  setIsExportModalOpen(false);
-                }}
-                active={true}
-                isDarkMode={isDarkMode}
-                className="!h-11 !rounded-2xl min-w-[120px]"
-              >
-                <span className="text-sm font-black tracking-widest px-4">{language === 'cn' ? '导出' : 'Export'}</span>
-              </PremiumButton>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* --- Insert Variable Modal --- */}
+            {/* --- Insert Variable Modal --- */}
       <InsertVariableModal
         isOpen={isInsertModalOpen}
         onClose={() => setIsInsertModalOpen(false)}

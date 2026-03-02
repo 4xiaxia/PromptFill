@@ -30,6 +30,25 @@ export default defineConfig({
     minify: !process.env.TAURI_DEBUG ? 'esbuild' : false,
     // 为调试构建生成源代码映射
     sourcemap: !!process.env.TAURI_DEBUG,
+    rollupOptions: {
+      output: {
+        // 手动分块：将大型第三方库单独打包，利用浏览器缓存
+        manualChunks: {
+          // React 核心（最稳定，缓存命中率最高）
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          // 动画库
+          'vendor-motion': ['framer-motion'],
+          // 图标库
+          'vendor-icons': ['lucide-react'],
+          // 数据存储（Dexie.js + pako 压缩）
+          'vendor-storage': ['dexie', 'pako'],
+          // 分享/二维码相关
+          'vendor-share': ['qrcode.react'],
+          // 样式工具
+          'vendor-styles': ['clsx', 'tailwind-merge'],
+        },
+      },
+    },
   },
 })
 

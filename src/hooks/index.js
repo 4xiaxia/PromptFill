@@ -13,3 +13,5 @@ export { useLinkageGroups, parseVariableName } from './useLinkageGroups';
 export { useShareFunctions } from './useShareFunctions';
 export { useTemplateManagement } from './useTemplateManagement';
 export { useServiceWorker } from './useServiceWorker';
+export { useDataSync } from './useDataSync';
+export { useImageExport } from './useImageExport';
