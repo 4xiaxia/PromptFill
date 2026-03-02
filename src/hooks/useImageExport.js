@@ -252,10 +252,10 @@ export const useImageExport = ({
       const activeTemplateName = getLocalized(activeTemplate.name, language);
       const filename = `${activeTemplateName.replace(/\s+/g, '_')}_prompt.jpg`;
 
-      const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
       const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-      if (isMobileUA) {
+      if (isMobile) {
         try {
           const base64Response = await fetch(image);
           const blob = await base64Response.blob();
