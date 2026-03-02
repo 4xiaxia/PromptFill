@@ -59,7 +59,7 @@ export const mergeTemplatesWithSystem = (currentTemplates, { backupSuffix }) => 
 };
 
 // 合并系统词库与默认值，系统词库强制更新，用户改动内容合并
-export const mergeBanksWithSystem = (currentBanks, currentDefaults, { backupSuffix }) => {
+export const mergeBanksWithSystem = (currentBanks, currentDefaults, { backupSuffix: _backupSuffix }) => {
   const mergedBanks = deepClone(INITIAL_BANKS);
   const mergedDefaults = { ...INITIAL_DEFAULTS };
   const notes = [];

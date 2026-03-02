@@ -1,4 +1,3 @@
-import React from 'react';
 import { useStickyState } from '../hooks';
 import { getSystemLanguage } from '../utils';
 import { ArrowLeft, Globe } from 'lucide-react';

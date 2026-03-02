@@ -641,21 +641,30 @@ npm run tauri        # Tauri 桌面/移动端构建
 | #001 | `index.html` | **标题拼写错误**：`管理与管理工具` | 修正为 `管理与优化工具` |
 | #002 | `src/data/templates.js` | **JSDoc 注释乱码**：示例代码中的 `bestModel`、`baseImage` 字段错误混入 JSDoc 注释块，且存在重复行 | 清理乱入的代码片段，保留正确的 `language: "cn" // 或 ["cn"]` |
 | #003 | `.eslintrc.cjs`（缺失） | **缺少 ESLint 配置文件**：`npm run lint` 报 "ESLint couldn't find a configuration file" 完全无法运行 | 新建 `.eslintrc.cjs`，配置 React + Hooks + react-refresh 规则，并为 `vite.config.js`/`scripts/` 配置 Node.js 环境 |
+| #004 | `.eslintrc.cjs` | **ESLint 未配置 `_` 前缀忽略规则**：`_backupSuffix` 等有意未使用的解构参数仍被报错 | 在 `no-unused-vars` 规则中增加 `varsIgnorePattern`/`argsIgnorePattern` 等 `^_` 忽略配置 |
+| W005 | `src/utils/helpers.js:23,26` | 空的 `try/catch` 块（`no-empty`）：Tauri 剪贴板初始化路径中的 catch 为空 | 补充 `console.warn(...)` 错误日志 |
+| W006 | `src/utils/helpers.js:125` | 变量 `templateId` 解构后从未使用（`no-unused-vars`） | 重命名为 `_templateId` 以明确为有意忽略 |
+| W007 | `src/utils/merge.js:62` | 参数 `backupSuffix` 已定义但未使用（解构时）| 重命名为 `_backupSuffix` |
+| W008 | `src/pages/PrivacyPage.jsx:1` | `React` 导入但未使用（JSX Transform 已处理） | 删除冗余 `import React from 'react'` |
+| W010 | `src/utils/aiService.js` | 云端 AI API URL 硬编码为 `https://data.tanshilong.com/api/ai/process` | 改为 `import.meta.env.VITE_AI_API_URL \|\| "..."` 并在 `.env.example` 中记录 |
+| W011 | `src/App.jsx` | 大量 lucide-react 图标导入（`Copy`, `Plus`, `Settings` 等33个）在组件移出后遗留为无用导入 | 清理，只保留实际使用的 `X`, `Check` |
+| W012 | `src/App.jsx` | `WaypointsIcon`, `PREMIUM_STYLES`, `CATEGORY_STYLES`, `deepClone`, `makeUniqueKey`, `decompressTemplate`, `Variable`, `VisualEditor`, `EditorToolbar`, `Lightbox`, `TemplatePreview` 均为无用导入 | 全部删除 |
+| W013 | `src/App.jsx` | `isStyleMenuOpen`, `setIsStyleMenuOpen`, `currentMasonryStyle` 等状态/变量声明但从未读取 | 删除未使用的状态声明 |
+| W014 | `src/App.jsx` | `touchDragRef`, `isImagePreviewOpen`, `setIsImagePreviewOpen`, `showImageActionMenu`, `setShowImageActionMenu` 声明但从未使用 | 删除冗余声明 |
+| W015 | `src/App.jsx` | `sw = useServiceWorker()` 赋值但从未使用 | 改为无赋值调用：`useServiceWorker()` |
+| W016 | `src/App.jsx` | `showToastMessage(...)` 被调用 10 处，但该函数从未定义（运行时 ReferenceError） | 全部替换为 `setNoticeMessage(...)` |
+| W017 | `src/App.jsx` | `openDB`, `getDirectoryHandle` 使用但未导入 | 补充 `import { openDB, getDirectoryHandle } from './utils/db'` |
+| W018 | `src/App.jsx` | `case 'random':` 块内 `const` 声明违反 `no-case-declarations` | 用 `{}` 包裹 case 块 |
+| W019 | `src/App.jsx` | `localStorage.hasOwnProperty(key)` 违反 `no-prototype-builtins` | 改为 `Object.prototype.hasOwnProperty.call(localStorage, key)` |
+| W020 | `src/App.jsx:2179` | `return;` 后紧跟 `};`，多余的分号（`no-extra-semi`） | 删除多余分号 |
 
 ### 10.2 已知待优化问题 ⚠️
 
 | 编号 | 文件 | 问题描述 | 严重程度 |
 |------|------|---------|---------|
 | W001 | `App.jsx` | 文件体积过大（~145KB 单文件），包含过多逻辑，建议继续拆分 | 中 |
-| W002 | `App.jsx` | 多处 `useEffect`/`useCallback`/`useMemo` 依赖数组不完整（react-hooks/exhaustive-deps 警告） | 低 |
-| W003 | `App.jsx:372` | 变量 `charCode` 赋值但从未使用 (`no-unused-vars`) | 低 |
-| W004 | `App.jsx:575` | 空的 `catch {}` 块 (`no-empty`) | 低 |
-| W005 | `src/utils/helpers.js:23,26` | 空的 `try/catch` 块 | 低 |
-| W006 | `src/utils/helpers.js:125` | 变量 `templateId` 赋值但从未使用 | 低 |
-| W007 | `src/utils/merge.js:62` | 参数 `backupSuffix` 已定义但未使用（解构时）| 低 |
-| W008 | `src/pages/PrivacyPage.jsx:1` | `React` 导入但未使用（JSX Transform 已处理） | 低 |
+| W002 | `App.jsx` | 多处 `useEffect`/`useCallback`/`useMemo` 依赖数组不完整（react-hooks/exhaustive-deps 警告，共17处） | 低 |
 | W009 | 全局 | 缺少自动化测试（无 unit/integration 测试） | 中 |
-| W010 | `src/utils/aiService.js` | 云端 API URL 硬编码，建议改为环境变量 | 低 |
 
 ---
 
