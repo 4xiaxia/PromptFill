@@ -369,7 +369,6 @@ export const useShareFunctions = (
         
         if (!isSame) {
           let newKey = oldKey;
-          let charCode = 65; // 'A' 的 ASCII 码
           
           // 辅助函数：根据数字生成字母后缀 (0 -> A, 1 -> B, 26 -> AA ...)
           const getLetterSuffix = (num) => {
@@ -572,7 +571,9 @@ export const useShareFunctions = (
             new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 800))
           ]);
           if (shortCode) finalToken = shortCode;
-        } catch (e) {}
+        } catch (e) {
+          console.warn('[Share] Short code request failed, falling back to long token:', e);
+        }
       }
 
       const templateName = getLocalized(activeTemplate.name, language);

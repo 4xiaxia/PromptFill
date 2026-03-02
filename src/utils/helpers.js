@@ -20,10 +20,14 @@ export const copyToClipboard = async (text) => {
           // 这里的具体指令取决于 Tauri 插件的内部实现，
           // 但最稳妥的方法是使用 navigator.clipboard 并在下方做强力 fallback
           console.log('Tauri environment detected for clipboard');
-        } catch (e) {}
+        } catch (e) {
+          console.warn('Tauri clipboard invoke failed:', e);
+        }
       }
     }
-  } catch (e) {}
+  } catch (e) {
+    console.warn('Tauri environment check failed:', e);
+  }
 
   // 1. 优先尝试现代 API
   if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -122,7 +126,8 @@ export const compressTemplate = (data, banks = null, categories = null, template
               // 关联模版的 source：降级处理，移除其中的 templateId 避免嵌套
               src: (linkedTpl.source || []).map(s => {
                 if (s.templateId) {
-                  const { templateId, ...rest } = s;
+                  // eslint-disable-next-line no-unused-vars
+                  const { templateId: _templateId, ...rest } = s;
                   return rest;
                 }
                 return s;

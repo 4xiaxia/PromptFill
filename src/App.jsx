@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
-import { Copy, Plus, X, Settings, Check, Edit3, Eye, Trash2, FileText, Pencil, Copy as CopyIcon, Globe, ChevronDown, ChevronUp, ChevronRight, ChevronLeft, GripVertical, Download, Upload, Image as ImageIcon, List, Undo, Redo, Maximize2, RotateCcw, LayoutGrid, Search, ArrowRight, ArrowUpRight, ArrowUpDown, RefreshCw, Sparkles, Sun, Moon, ExternalLink } from 'lucide-react';
-import { WaypointsIcon } from './components/icons/WaypointsIcon';
+import { X, Check } from 'lucide-react';
 import html2canvas from 'html2canvas';
 
 // ====== 导入数据配置 ======
@@ -11,22 +10,23 @@ import { INITIAL_BANKS, INITIAL_DEFAULTS, INITIAL_CATEGORIES } from './data/bank
 
 // ====== 导入常量配置 ======
 import { TRANSLATIONS } from './constants/translations';
-import { PREMIUM_STYLES, CATEGORY_STYLES, TAG_STYLES, TAG_LABELS } from './constants/styles';
+import { TAG_STYLES, TAG_LABELS } from './constants/styles';
 import { MASONRY_STYLES } from './constants/masonryStyles';
 import { SMART_SPLIT_CONFIRM_MESSAGE, SMART_SPLIT_CONFIRM_TITLE, SMART_SPLIT_BUTTON_TEXT } from './constants/modalMessages';
 
 // ====== 导入工具函数 ======
-import { deepClone, makeUniqueKey, waitForImageLoad, getLocalized, getSystemLanguage, compressTemplate, decompressTemplate, copyToClipboard, saveDirectoryHandle } from './utils';
+import { waitForImageLoad, getLocalized, getSystemLanguage, compressTemplate, copyToClipboard, saveDirectoryHandle } from './utils';
 import { mergeTemplatesWithSystem, mergeBanksWithSystem } from './utils/merge';
 import { generateAITerms, polishAndSplitPrompt } from './utils/aiService';  // AI 服务
 import { uploadToICloud, downloadFromICloud } from './utils/icloud'; // iCloud 服务
 import { smartFetch } from './utils/platform'; // 跨平台 fetch
+import { openDB, getDirectoryHandle } from './utils/db'; // IndexedDB 工具
 
 // ====== 导入自定义 Hooks ======
 import { useStickyState, useAsyncStickyState, useEditorHistory, useLinkageGroups, useShareFunctions, useTemplateManagement, useServiceWorker } from './hooks';
 
 // ====== 导入 UI 组件 ======
-import { Variable, VisualEditor, PremiumButton, EditorToolbar, Lightbox, TemplatePreview, TemplateEditor, TemplatesSidebar, BanksSidebar, InsertVariableModal, AddBankModal, DiscoveryView, MobileSettingsView, SettingsView, Sidebar, TagSidebar } from './components';
+import { PremiumButton, TemplateEditor, TemplatesSidebar, BanksSidebar, InsertVariableModal, AddBankModal, DiscoveryView, MobileSettingsView, SettingsView, Sidebar, TagSidebar } from './components';
 import { ImagePreviewModal, SourceAssetModal, AnimatedSlogan, MobileAnimatedSlogan } from './components/preview';
 import { MobileBottomNav } from './components/mobile';
 import { ShareOptionsModal, CopySuccessModal, ImportTokenModal, ShareImportModal, CategoryManagerModal, ConfirmModal, AddTemplateTypeModal, VideoSubTypeModal } from './components/modals';
@@ -51,8 +51,6 @@ const App = () => {
 
   // 临时功能：瀑布流样式管理
   const [masonryStyleKey, setMasonryStyleKey] = useState('poster');
-  const [isStyleMenuOpen, setIsStyleMenuOpen] = useState(false);
-  const currentMasonryStyle = MASONRY_STYLES[masonryStyleKey] || MASONRY_STYLES.default;
 
   // Global State with Persistence
   // 使用异步 IndexedDB 存储核心大数据
@@ -138,6 +136,7 @@ const App = () => {
   const [bankSidebarWidth, setBankSidebarWidth] = useStickyState(300, "app_bank_sidebar_width_v1"); // Default width reduced to 300px for more editor space
   const [isResizing, setIsResizing] = useState(false);
   const [iCloudEnabled, setICloudEnabled] = useStickyState(false, "app_icloud_sync_v1");
+  // eslint-disable-next-line no-unused-vars
   const [isICloudSyncing, setIsICloudSyncing] = useState(false);
   const [lastICloudSyncAt, setLastICloudSyncAt] = useStickyState(0, "app_last_icloud_sync");
   const [lastICloudSyncError, setLastICloudSyncError] = useState("");
@@ -210,7 +209,6 @@ const App = () => {
   const [isTemplatesDrawerOpen, setIsTemplatesDrawerOpen] = useState(false);
   const [isBanksDrawerOpen, setIsBanksDrawerOpen] = useState(false);
   const [touchDraggingVar, setTouchDraggingVar] = useState(null); // { key, x, y } 用于移动端模拟拖拽
-  const touchDragRef = useRef(null);
 
   const [isEditing, setIsEditing] = useState(false);
   const [activePopover, setActivePopover] = useState(null);
@@ -219,7 +217,6 @@ const App = () => {
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false); // New UI state
   const [isInsertModalOpen, setIsInsertModalOpen] = useState(false); // New UI state for Insert Picker
   const [isCopySuccessModalOpen, setIsCopySuccessModalOpen] = useState(false); // New UI state for Copy Success
-  const [isImagePreviewOpen, setIsImagePreviewOpen] = useState(false); // New UI state for Lightbox
   const [deleteTemplateTargetId, setDeleteTemplateTargetId] = useState(null);
   const [isDeleteTemplateConfirmOpen, setIsDeleteTemplateConfirmOpen] = useState(false);
   const [actionConfirm, setActionConfirm] = useState(null);
@@ -273,7 +270,6 @@ const App = () => {
   const [imageUpdateMode, setImageUpdateMode] = useState('replace'); // 'replace' or 'add'
   const [currentImageEditIndex, setCurrentImageEditIndex] = useState(0);
   const [showImageUrlInput, setShowImageUrlInput] = useState(false);
-  const [showImageActionMenu, setShowImageActionMenu] = useState(false);
   
   // File System Access API State
   const [storageMode, setStorageMode] = useState(() => {
@@ -344,7 +340,7 @@ const App = () => {
   const [updateNoticeType, setUpdateNoticeType] = useState(null); // 'app' | 'data' | null
 
   // Service Worker - 图片缓存
-  const sw = useServiceWorker();
+  useServiceWorker();
 
   // ====== 智能多源数据同步逻辑 ======
   const DATA_SOURCES = {
@@ -731,7 +727,9 @@ const App = () => {
     handleUndo,
     handleRedo,
     resetHistory,
+    // eslint-disable-next-line no-unused-vars
     canUndo,
+    // eslint-disable-next-line no-unused-vars
     canRedo,
   } = useEditorHistory(activeTemplateId, activeTemplate, setTemplates);
 
@@ -752,7 +750,9 @@ const App = () => {
     setCurrentVariableName,
     currentGroupId,
     setCurrentGroupId,
+    // eslint-disable-next-line no-unused-vars
     findLinkedVariables,
+    // eslint-disable-next-line no-unused-vars
     updateActiveTemplateSelection,
     handleSelect: handleSelectFromHook,
     handleAddCustomAndSelect: handleAddCustomAndSelectFromHook,
@@ -765,6 +765,7 @@ const App = () => {
     showShareOptionsModal,
     showImportTokenModal,
     importTokenValue,
+    // eslint-disable-next-line no-unused-vars
     shareUrlMemo,
     currentShareUrl,
     isGenerating,
@@ -774,6 +775,7 @@ const App = () => {
     setShareImportError,
     isImportingShare,
     shortCodeError,
+    // eslint-disable-next-line no-unused-vars
     setSharedTemplateData,
     setShowShareImportModal,
     setShowShareOptionsModal,
@@ -1472,6 +1474,7 @@ const App = () => {
     ));
   };
 
+  // eslint-disable-next-line no-unused-vars
   const toggleTag = (tag) => {
     setSelectedTags(prevTag => prevTag === tag ? "" : tag);
   };
@@ -1506,10 +1509,11 @@ const App = () => {
           return nameA.localeCompare(nameB, language === 'cn' ? 'zh-CN' : 'en');
         case 'z-a':
           return nameB.localeCompare(nameA, language === 'cn' ? 'zh-CN' : 'en');
-        case 'random':
+        case 'random': {
           const hashA = (a.id + randomSeed).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
           const hashB = (b.id + randomSeed).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
           return hashA - hashB;
+        }
         default:
           return 0;
       }
@@ -1769,7 +1773,7 @@ const App = () => {
                           title: templateName,
                           text: '导出的提示词模板'
                       });
-                      showToastMessage('✅ 模板已分享/保存');
+                      setNoticeMessage('✅ 模板已分享/保存');
                       return;
                   }
               } catch (shareError) {
@@ -1797,7 +1801,7 @@ const App = () => {
               URL.revokeObjectURL(url);
           }, 100);
           
-          showToastMessage('✅ 模板已导出');
+          setNoticeMessage('✅ 模板已导出');
       } catch (error) {
           console.error('导出失败:', error);
           alert('导出失败，请重试');
@@ -2001,11 +2005,12 @@ const App = () => {
   }, [templates, banks, categories, defaults, storageMode, directoryHandle]);
 
   // 存储空间管理
+  // eslint-disable-next-line no-unused-vars
   const getStorageSize = () => {
       try {
           let total = 0;
           for (let key in localStorage) {
-              if (localStorage.hasOwnProperty(key)) {
+              if (Object.prototype.hasOwnProperty.call(localStorage, key)) {
                   total += localStorage[key].length + key.length;
               }
           }
@@ -2056,6 +2061,7 @@ const App = () => {
     });
   }, [language, t, handleClearAllData, openActionConfirm]);
 
+  // eslint-disable-next-line no-unused-vars
   const requestResetSystemData = React.useCallback(() => {
     openActionConfirm({
       title: language === 'cn' ? '重置系统数据' : 'Reset System Data',
@@ -2082,6 +2088,7 @@ const App = () => {
       }
   };
   
+  // eslint-disable-next-line no-unused-vars
   const handleManualLoadFromFolder = async () => {
       if (directoryHandle) {
           try {
@@ -2174,7 +2181,7 @@ const App = () => {
         if(textareaRef.current) textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
       }, 50);
       return;
-    };
+    }
 
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -2619,7 +2626,7 @@ const App = () => {
                         title: activeTemplateName,
                         text: '导出的提示词模板'
                     });
-                    showToastMessage('✅ 图片已分享，请选择"存储图像"保存到相册');
+                    setNoticeMessage('✅ 图片已分享，请选择"存储图像"保存到相册');
                 } else {
                     // 降级方案：对于iOS，打开新标签页显示图片
                     if (isIOS) {
@@ -2643,7 +2650,7 @@ const App = () => {
                                 </body>
                                 </html>
                             `);
-                            showToastMessage('✅ 请在新页面长按图片保存');
+                            setNoticeMessage('✅ 请在新页面长按图片保存');
                         } else {
                             // 如果无法打开新窗口，尝试下载
                             const link = document.createElement('a');
@@ -2653,7 +2660,7 @@ const App = () => {
                             document.body.appendChild(link);
                             link.click();
                             document.body.removeChild(link);
-                            showToastMessage('✅ 图片已导出，请在新页面保存');
+                            setNoticeMessage('✅ 图片已导出，请在新页面保存');
                         }
                     } else {
                         // 安卓等其他移动设备：触发下载
@@ -2663,7 +2670,7 @@ const App = () => {
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
-                        showToastMessage('✅ 图片已保存到下载文件夹');
+                        setNoticeMessage('✅ 图片已保存到下载文件夹');
                     }
                 }
             } catch (shareError) {
@@ -2683,7 +2690,7 @@ const App = () => {
                             </html>
                         `);
                     }
-                    showToastMessage('⚠️ 请在新页面长按图片保存');
+                    setNoticeMessage('⚠️ 请在新页面长按图片保存');
                 } else {
                     const link = document.createElement('a');
                     link.href = image;
@@ -2691,7 +2698,7 @@ const App = () => {
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
-                    showToastMessage('✅ 图片已保存');
+                    setNoticeMessage('✅ 图片已保存');
                 }
             }
         } else {
@@ -2702,11 +2709,11 @@ const App = () => {
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            showToastMessage('✅ 图片导出成功！');
+            setNoticeMessage('✅ 图片导出成功！');
         }
     } catch (err) {
         console.error("Export failed:", err);
-        showToastMessage('❌ 导出失败，请重试');
+        setNoticeMessage('❌ 导出失败，请重试');
     } finally {
         // 清理临时容器
         const tempContainer = document.getElementById('export-container-temp');
