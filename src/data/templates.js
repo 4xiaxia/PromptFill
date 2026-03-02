@@ -29,11 +29,7 @@
  *   id: "tpl_cn_only",
  *   name: "仅中文模板",
  *   content: "中文内容...",
- *   language: "cn",
-    bestModel: "Nano Banana Pro",
-    baseImage: "optional_base_image"  ,
-    bestModel: "Nano Banana Pro",
-    baseImage: "optional_base_image"// 或 ["cn"]
+ *   language: "cn" // 或 ["cn"]
  * }
  */
 
