@@ -6,6 +6,40 @@ import { useState, useRef, useCallback } from 'react';
 import { waitForImageLoad, getLocalized, compressTemplate } from '../utils';
 import { PUBLIC_SHARE_URL } from '../data/templates';
 
+/**
+ * 使用 qrcode.react 在本地生成二维码 Data URL，避免外部 API 依赖，确保国内可用
+ * @param {string} url - 二维码内容
+ * @param {number} size - 二维码尺寸
+ * @returns {Promise<string|null>} - 二维码 Data URL 或 null
+ */
+const generateQRDataURL = async (url, size = 200) => {
+  try {
+    const [{ createRoot }, { flushSync }, { QRCodeCanvas }] = await Promise.all([
+      import('react-dom/client'),
+      import('react-dom'),
+      import('qrcode.react'),
+    ]);
+    const React = (await import('react')).default;
+
+    const container = document.createElement('div');
+    container.style.cssText = 'position:fixed;left:-99999px;top:0;';
+    document.body.appendChild(container);
+
+    const root = createRoot(container);
+    flushSync(() => {
+      root.render(React.createElement(QRCodeCanvas, { value: url, size, marginSize: 2 }));
+    });
+
+    const canvas = container.querySelector('canvas');
+    const dataUrl = canvas ? canvas.toDataURL('image/png') : null;
+    root.unmount();
+    try { document.body.removeChild(container); } catch (e) { console.warn('[generateQRDataURL] 清理临时容器失败:', e); }
+    return dataUrl;
+  } catch {
+    return null;
+  }
+};
+
 export const useImageExport = ({
   activeTemplate,
   activeTemplateId,
@@ -69,15 +103,10 @@ export const useImageExport = ({
         qrContentUrl = "https://aipromptfill.com";
       }
 
-      const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data=${encodeURIComponent(qrContentUrl)}`;
-      const qrResponse = await fetch(qrApiUrl);
-      if (qrResponse.ok) {
-        const qrBlob = await qrResponse.blob();
-        qrBase64 = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.readAsDataURL(qrBlob);
-        });
+      // 本地生成二维码，避免外部 API 依赖，确保国内可用
+      const localQR = await generateQRDataURL(qrContentUrl, 200);
+      if (localQR) {
+        qrBase64 = localQR;
       }
     } catch (e) {
       console.warn("获取短链接或二维码失败:", e);
