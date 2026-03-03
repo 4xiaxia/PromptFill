@@ -563,7 +563,7 @@ export const MobileSettingsView = ({
             <div className="flex flex-col items-center">
               <div className={`w-56 h-56 ${isDarkMode ? 'bg-black' : 'bg-gray-50'} rounded-3xl overflow-hidden mb-6 border ${isDarkMode ? 'border-white/5' : 'border-gray-100'} p-3 shadow-inner`}>
                 <img 
-                  src="/public/wechat.png" 
+                  src="/wechat.png" 
                   alt="Contact QR Code" 
                   className="w-full h-full object-contain rounded-2xl"
                 />

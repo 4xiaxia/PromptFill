@@ -807,7 +807,7 @@ export const SettingsView = ({
             <div className="flex flex-col items-center">
               <div className={`w-48 h-48 rounded-2xl overflow-hidden mb-4 border p-2 ${isDarkMode ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
                 <img 
-                  src="/public/wechat.png" 
+                  src="/wechat.png" 
                   alt="Contact QR Code" 
                   className="w-full h-full object-contain rounded-lg"
                 />
