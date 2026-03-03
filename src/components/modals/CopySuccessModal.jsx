@@ -84,10 +84,10 @@ const CopySuccessModal = ({ isOpen, onClose, bestModel, templateType = 'image', 
     }
   ] : [
     {
-      id: 'lovart',
-      name: 'Lovart.ai',
-      url: 'https://lovart.ai',
-      description: { cn: '专业创作社区', en: 'Pro Creative Community' },
+      id: 'api-channel',
+      name: 'api特价通道',
+      url: 'https://api.ujiapp.com',
+      description: { cn: '点击访问', en: 'Click to visit' },
       models: []
     },
     {
