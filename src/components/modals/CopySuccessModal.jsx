@@ -91,10 +91,10 @@ const CopySuccessModal = ({ isOpen, onClose, bestModel, templateType = 'image', 
       models: []
     },
     {
-      id: 'flowith',
-      name: 'Flowith',
-      url: 'https://flowith.io/',
-      description: { cn: '多模型集成工作流', en: 'Multi-model Workflow' },
+      id: 'wechat-promo',
+      name: '8000+生成图片技巧、模板，剧本干货知识分享交流： 点击加入',
+      url: '/wechat.png',
+      description: { cn: '扫码加入交流群', en: 'Scan QR to join group' },
       models: []
     }
   ];
