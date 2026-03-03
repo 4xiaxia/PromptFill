@@ -5,7 +5,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { waitForImageLoad, getLocalized, compressTemplate } from '../utils';
 import { PUBLIC_SHARE_URL } from '../data/templates';
-import CONFIG from '../constants/config.js';
 
 export const useImageExport = ({
   activeTemplate,
@@ -49,10 +48,10 @@ export const useImageExport = ({
     // 导出长图时，水印链接优先使用正式域名，避免显示 localhost
     let displayUrl = PUBLIC_SHARE_URL || (window.location.origin + window.location.pathname);
     if (!displayUrl || displayUrl.includes('localhost') || displayUrl.includes('127.0.0.1')) {
-      displayUrl = CONFIG.APP.PUBLIC_URL;
+      displayUrl = "https://aipromptfill.com";
     }
 
-    let qrContentUrl = CONFIG.APP.PUBLIC_URL;
+    let qrContentUrl = "https://aipromptfill.com";
     let qrBase64 = "/QRCode.png";
 
     try {
@@ -67,7 +66,7 @@ export const useImageExport = ({
         qrContentUrl = shortUrl;
       } else if (compressed) {
         displayUrl = `${normalizedBase}/#/share?share=${compressed}`;
-        qrContentUrl = CONFIG.APP.PUBLIC_URL;
+        qrContentUrl = "https://aipromptfill.com";
       }
 
       const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data=${encodeURIComponent(qrContentUrl)}`;

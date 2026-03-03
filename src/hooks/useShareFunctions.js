@@ -1,10 +1,11 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { compressTemplate, decompressTemplate, copyToClipboard, getLocalized } from '../utils/helpers';
 import { PUBLIC_SHARE_URL } from '../data/templates';
-import CONFIG from '../constants/config.js';
 
-// ====== 私有后端配置（使用集中管理）======
-const API_BASE_URL = CONFIG.API.SHARE;
+// ====== 私有后端配置 ======
+const API_BASE_URL = 
+  import.meta.env.VITE_SHARE_API_URL || 
+  'https://data.tanshilong.com/api/share';
 
 const isTauriEnv = () => !!(window.__TAURI_INTERNALS__ || window.__TAURI_IPC__ || window.location.protocol === 'tauri:');
 
@@ -129,7 +130,7 @@ export const useShareFunctions = (
   // 修正：在 Tauri 环境下强制使用官网域名作为分享基准
   // 使用更健壮的检测方式
   const isTauri = !!(window.__TAURI_INTERNALS__ || window.__TAURI_IPC__ || window.location.protocol === 'tauri:');
-  const base = PUBLIC_SHARE_URL || (isTauri ? CONFIG.APP.PUBLIC_URL : (window.location.origin + window.location.pathname));
+  const base = PUBLIC_SHARE_URL || (isTauri ? 'https://aipromptfill.com' : (window.location.origin + window.location.pathname));
 
     if (!compressed) return base;
 
@@ -533,7 +534,7 @@ export const useShareFunctions = (
       }
 
   const isTauri = !!(window.__TAURI_INTERNALS__ || window.__TAURI_IPC__ || window.location.protocol === 'tauri:');
-  const base = PUBLIC_SHARE_URL || (isTauri ? CONFIG.APP.PUBLIC_URL : (window.location.origin + window.location.pathname));
+  const base = PUBLIC_SHARE_URL || (isTauri ? 'https://aipromptfill.com' : (window.location.origin + window.location.pathname));
   const fullUrl = `${base}${base.endsWith('/') ? '' : '/'}#/share?share=${finalShareData || compressed}`;
 
       // --- 直接复制到剪贴板 ---
@@ -595,7 +596,7 @@ export const useShareFunctions = (
   // 如果短码获取成功，拼装短链
   if (prefetchedShortCode) {
     const isTauri = !!(window.__TAURI_INTERNALS__ || window.__TAURI_IPC__ || window.location.protocol === 'tauri:');
-    const base = PUBLIC_SHARE_URL || (isTauri ? CONFIG.APP.PUBLIC_URL : (window.location.origin + window.location.pathname));
+    const base = PUBLIC_SHARE_URL || (isTauri ? 'https://aipromptfill.com' : (window.location.origin + window.location.pathname));
     return `${base}${base.endsWith('/') ? '' : '/'}#/share?share=${prefetchedShortCode}`;
     }
     

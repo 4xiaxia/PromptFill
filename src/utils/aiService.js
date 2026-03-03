@@ -6,10 +6,9 @@
 
 import { AI_FEATURE_ENABLED } from '../constants/aiConfig';
 import { smartFetch } from './platform';
-import CONFIG from '../constants/config.js';
 
-// 云端 AI 处理接口，使用集中配置管理
-const CLOUD_API_URL = CONFIG.API.AI;
+// 云端 AI 处理接口，支持通过环境变量覆盖
+const CLOUD_API_URL = import.meta.env.VITE_AI_API_URL || "https://data.tanshilong.com/api/ai/process";
 
 /**
  * 智能生成词条（增强版：支持上下文感知）
