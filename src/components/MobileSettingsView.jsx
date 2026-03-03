@@ -539,14 +539,7 @@ export const MobileSettingsView = ({
         {/* credits & GitHub link removed */}
         <SettingItem 
           icon={Mail} 
-          label={t('contact_author')} 
-          value="tanshilong@gmail.com" 
-          onClick={() => window.location.href = 'mailto:tanshilong@gmail.com'}
-        />
-        <SettingItem 
-          icon={MessageCircle} 
-          label="微信反馈" 
-          value="tanshilongmario" 
+          label={language === 'cn' ? '加入交流' : 'Join & Chat'} 
           onClick={() => setShowWechatQR(true)}
         />
       </SettingSection>
@@ -570,8 +563,8 @@ export const MobileSettingsView = ({
             <div className="flex flex-col items-center">
               <div className={`w-56 h-56 ${isDarkMode ? 'bg-black' : 'bg-gray-50'} rounded-3xl overflow-hidden mb-6 border ${isDarkMode ? 'border-white/5' : 'border-gray-100'} p-3 shadow-inner`}>
                 <img 
-                  src="/Wechat.png" 
-                  alt="WeChat QR Code" 
+                  src="/public/wechat.png" 
+                  alt="Contact QR Code" 
                   className="w-full h-full object-contain rounded-2xl"
                 />
               </div>
@@ -584,8 +577,11 @@ export const MobileSettingsView = ({
 
 
       <div className={`text-center pb-8 ${isDarkMode ? 'opacity-10' : 'opacity-20'}`}>
-        <p className={`text-[10px] font-black tracking-[0.3em] uppercase ${isDarkMode ? 'text-white' : 'text-black'}`}>Prompt Fill V0.9.2</p>
-        <p className={`text-[9px] font-bold mt-1 ${isDarkMode ? 'text-white' : 'text-black'}`}>Made by CornerStudio</p>
+        <p className={`text-[10px] font-black tracking-[0.3em] uppercase ${isDarkMode ? 'text-white' : 'text-black'}`}>欢迎交流 微信：</p>
+        <button
+          onClick={() => setShowWechatQR(true)}
+          className={`text-[9px] font-bold mt-1 underline ${isDarkMode ? 'text-white' : 'text-black'}`}
+        >点击查看二维码</button>
       </div>
     </div>
   );

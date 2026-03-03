@@ -42,7 +42,7 @@ export const SYSTEM_DATA_VERSION = "0.9.3";
  * 分享功能正式环境域名（扫码导入需使用公网可访问地址）
  * 留空则自动使用当前访问地址
  */
-export const PUBLIC_SHARE_URL = "https://aipromptfill.com";
+export const PUBLIC_SHARE_URL = ""; // leave blank to use current site URL dynamically
 
 export const TEMPLATE_SKETCH_REALITY_COMPARISON = {
   cn: `### 手绘速写与实景对比

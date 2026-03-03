@@ -79,11 +79,8 @@ export const useImageExport = ({
 
     setIsExporting(true);
 
-    // 导出长图时，水印链接优先使用正式域名，避免显示 localhost
+    // 导出长图时，水印链接使用当前访问地址
     let displayUrl = PUBLIC_SHARE_URL || (window.location.origin + window.location.pathname);
-    if (!displayUrl || displayUrl.includes('localhost') || displayUrl.includes('127.0.0.1')) {
-      displayUrl = "https://aipromptfill.com";
-    }
 
     let qrContentUrl = "https://aipromptfill.com";
     let qrBase64 = "/QRCode.png";

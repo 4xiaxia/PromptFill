@@ -725,12 +725,7 @@ export const SettingsView = ({
               {/* Credits & GitHub links removed per request */}
               <SettingItem 
                 icon={Mail} 
-                label={language === 'cn' ? '反馈邮箱' : 'Feedback'} 
-                onClick={() => window.location.href = 'mailto:tanshilong@gmail.com'}
-              />
-              <SettingItem 
-                icon={MessageCircle} 
-                label={language === 'cn' ? '作者微信' : 'WeChat'} 
+                label={language === 'cn' ? '加入交流' : 'Join & Chat'} 
                 onClick={() => setShowWechatQR(true)}
               />
             </SettingSection>
@@ -812,8 +807,8 @@ export const SettingsView = ({
             <div className="flex flex-col items-center">
               <div className={`w-48 h-48 rounded-2xl overflow-hidden mb-4 border p-2 ${isDarkMode ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
                 <img 
-                  src="/Wechat.png" 
-                  alt="WeChat QR Code" 
+                  src="/public/wechat.png" 
+                  alt="Contact QR Code" 
                   className="w-full h-full object-contain rounded-lg"
                 />
               </div>

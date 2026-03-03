@@ -127,10 +127,8 @@ export const useShareFunctions = (
     if (!activeTemplate) return "";
 
     const compressed = compressTemplate(activeTemplate, banks, categories, templates);
-  // 修正：在 Tauri 环境下强制使用官网域名作为分享基准
-  // 使用更健壮的检测方式
-  const isTauri = !!(window.__TAURI_INTERNALS__ || window.__TAURI_IPC__ || window.location.protocol === 'tauri:');
-  const base = PUBLIC_SHARE_URL || (isTauri ? 'https://aipromptfill.com' : (window.location.origin + window.location.pathname));
+  // base URL dynamically uses current location unless PUBLIC_SHARE_URL is set
+  const base = PUBLIC_SHARE_URL || (window.location.origin + window.location.pathname);
 
     if (!compressed) return base;
 
@@ -596,7 +594,7 @@ export const useShareFunctions = (
   // 如果短码获取成功，拼装短链
   if (prefetchedShortCode) {
     const isTauri = !!(window.__TAURI_INTERNALS__ || window.__TAURI_IPC__ || window.location.protocol === 'tauri:');
-    const base = PUBLIC_SHARE_URL || (isTauri ? 'https://aipromptfill.com' : (window.location.origin + window.location.pathname));
+    const base = PUBLIC_SHARE_URL || (window.location.origin + window.location.pathname);
     return `${base}${base.endsWith('/') ? '' : '/'}#/share?share=${prefetchedShortCode}`;
     }
     
