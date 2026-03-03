@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 // import { AppStoreIcon } from './icons/AppStoreIcon';
-import { GithubIcon } from './icons/GithubIcon';
+// import { GithubIcon } from './icons/GithubIcon';
 import { HomeIcon } from './icons/HomeIcon';
 import { ListIcon } from './icons/ListIcon';
 import { OrderIcon } from './icons/OrderIcon';
@@ -199,14 +199,7 @@ export const Sidebar = ({
 
         {/* App download link removed */}
 
-        <Tooltip content="Github" isDarkMode={isDarkMode}>
-          <button
-            onClick={() => openExternalLink('https://github.com/TanShilongMario/PromptFill/')}
-            className={`p-2 transition-colors ${isDarkMode ? 'text-[#8E9196]' : 'text-[#6B7280]'} hover:text-[#F97316]`}
-          >
-            <GithubIcon size={24} />
-          </button>
-        </Tooltip>
+        {/* Github link removed */}
 
         {/* 捐赠按钮 - 暂时隐藏
         <Tooltip content={language === 'cn' ? '请我喝杯奶茶' : 'Buy me a bubble tea'} isDarkMode={isDarkMode}>

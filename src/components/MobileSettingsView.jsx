@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Settings, Globe, Database, Download, Upload, 
-  RotateCcw, Trash2, Mail, MessageCircle, Github, 
+  RotateCcw, Trash2, Mail, MessageCircle, 
   ChevronRight, RefreshCw, FileText, Info, X,
   Moon, Sun, Heart, Cloud
 } from 'lucide-react';
@@ -24,7 +24,7 @@ export const MobileSettingsView = ({
   lastICloudSyncError
 }) => {
   const [showWechatQR, setShowWechatQR] = useState(false);
-  const [showCredits, setShowCredits] = useState(false);
+  // credits section hidden
   const [storageStats, setStorageStats] = React.useState(null);
 
   const isTauriMobile = !!(window.__TAURI_INTERNALS__ && /iPhone|iPad|iPod/i.test(navigator.userAgent));
@@ -536,11 +536,7 @@ export const MobileSettingsView = ({
 
       {/* 4. 关于与联系 */}
       <SettingSection title={t('connect_author')} icon={Info}>
-        <SettingItem 
-          icon={Heart} 
-          label={language === 'cn' ? '鸣谢与致敬' : 'Credits'} 
-          onClick={() => setShowCredits(true)}
-        />
+        {/* credits & GitHub link removed */}
         <SettingItem 
           icon={Mail} 
           label={t('contact_author')} 
@@ -552,11 +548,6 @@ export const MobileSettingsView = ({
           label="微信反馈" 
           value="tanshilongmario" 
           onClick={() => setShowWechatQR(true)}
-        />
-        <SettingItem 
-          icon={Github} 
-          label={t('github_link')} 
-          onClick={() => openExternalLink('https://github.com/TanShilongMario/PromptFill')}
         />
       </SettingSection>
 
@@ -591,67 +582,6 @@ export const MobileSettingsView = ({
         </div>
       )}
 
-      {/* Credits Popover (Mobile Style) */}
-      {showCredits && (
-        <div 
-          className="fixed inset-0 z-[400] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300 px-6"
-          onClick={() => setShowCredits(false)}
-        >
-          <div 
-            className={`${isDarkMode ? 'bg-zinc-900 border-white/10' : 'bg-white border-white/60'} w-full max-w-sm p-8 rounded-[40px] shadow-2xl border relative animate-in zoom-in-95 duration-300`}
-            onClick={e => e.stopPropagation()}
-          >
-            <button 
-              onClick={() => setShowCredits(false)}
-              className="absolute top-6 right-6 p-2 text-gray-400 hover:text-orange-500 transition-colors"
-            >
-              <X size={24} />
-            </button>
-            
-            <div className="flex flex-col items-center text-center">
-              <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-6 ${isDarkMode ? 'bg-orange-500/10' : 'bg-orange-50'}`}>
-                <Heart size={28} className="text-orange-500 fill-orange-500" />
-              </div>
-              
-              <h3 className={`text-xl font-black mb-4 tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {language === 'cn' ? '鸣谢与致敬' : 'Credits'}
-              </h3>
-              
-              <div className={`space-y-4 text-xs leading-relaxed ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                <p className="font-bold text-orange-600">
-                  {language === 'cn' 
-                    ? '本项目为开源项目，旨在提升 AI 创作者的工作流效率。' 
-                    : 'An open-source project for AI creators.'}
-                </p>
-                
-                <p>
-                  {language === 'cn' ? '感谢灵感来源作者：' : 'Thanks to prompt authors:'}
-                  <br />
-                  <span className={`font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    宝玉(@dotey), MarioTan(@tanshilong), sundyme, Berryxia.AI, sidona, AmirMushich, Latte(@0xbisc), 阿兹特克小羊驼(@AztecaAlpaca), Keng哥(@langzihan), 虎小象(@hx831126), PlayForge AI(@94van.AI), underwood(@underwoodxie96), @YaseenK7212, Taaruk(@Taaruk_), M7(@mi7_crypto), @aleenaamiir, 两斤(@0x00_Krypt), ttmouse-豆爸(@ttmouse), Amira Zairi(@azed_ai), Ege(@egeberkina), Vigo Zhao(@VigoCreativeAI), Michael Rabone(@michaelrabone), Gadgetify(@Gdgtify), YangGuang (@YangGuangAI), Mr.Iancu @Iancu_ai, John @johnAGI168, Umesh @umesh_ai
-                  </span>
-                </p>
-                
-                <p>
-                  {language === 'cn' ? '初期支持：' : 'Early support:'} 
-                  <span className={`font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>松果先森</span>
-                  <br />
-                  {language === 'cn' ? '及所有提供建议、Bug 发现的小伙伴。' : '& all community contributors.'}
-                </p>
-                
-                <div className={`h-px w-10 mx-auto my-4 ${isDarkMode ? 'bg-white/5' : 'bg-gray-100'}`} />
-                
-                <p className="italic">
-                  {language === 'cn' 
-                    ? '最终感谢我的挚爱，我的女神，感谢她能够忍受我在半夜敲键盘的声音，并给予我一路的陪伴和支持。' 
-                    : 'Final thanks to my beloved, my goddess, for enduring my late-night typing and for her constant support.'}
-                  <Heart size={10} className="inline ml-1 text-red-500 fill-red-500" />
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className={`text-center pb-8 ${isDarkMode ? 'opacity-10' : 'opacity-20'}`}>
         <p className={`text-[10px] font-black tracking-[0.3em] uppercase ${isDarkMode ? 'text-white' : 'text-black'}`}>Prompt Fill V0.9.2</p>

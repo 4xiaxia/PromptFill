@@ -70,7 +70,8 @@ const PUBLIC_URL = import.meta.env.VITE_PUBLIC_URL || 'https://aipromptfill.com'
 /**
  * GitHub 仓库
  */
-const GITHUB_REPO = 'https://github.com/tanshilong/aipromptfill';
+// GitHub repo link removed per user request
+const GITHUB_REPO = '';
 
 /**
  * 赞赏支持链接
