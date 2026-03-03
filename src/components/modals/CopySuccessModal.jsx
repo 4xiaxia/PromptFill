@@ -181,8 +181,9 @@ const SiteItem = ({ site, isDarkMode, language, bestModel }) => {
       `}
     >
       <div className="flex flex-col items-start text-left">
-        <div className="flex items-center gap-2">
-          <span className={`text-sm font-black ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={`text-sm font-black ${isDarkMode ? 'text-white' : 'text-gray-900'} break-words whitespace-normal`}
+                style={{lineHeight: '1.2'}}>
             {site.name}
           </span>
           {isBest && (
@@ -191,7 +192,7 @@ const SiteItem = ({ site, isDarkMode, language, bestModel }) => {
             </span>
           )}
         </div>
-        <span className={`text-[10px] font-bold ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+        <span className={`text-[10px] font-bold ${isDarkMode ? 'text-gray-500' : 'text-gray-400'} break-words whitespace-normal`}>
           {site.description[language] || site.description.cn}
         </span>
       </div>
