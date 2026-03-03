@@ -150,7 +150,7 @@ const CopySuccessModal = ({ isOpen, onClose, bestModel, templateType = 'image', 
             <div>
               <p className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${isDarkMode ? 'text-gray-600' : 'text-gray-400'} mb-3`}>
                 <LayoutGrid size={12} />
-                {language === 'cn' ? '第三方集成平台' : 'THIRD-PARTY'}
+                {language === 'cn' ? '特价生成图片：api.ujiapp.com  海外api1.5折起' : 'Discount image API: api.ujiapp.com (overseas APIs from 15% price)'}
               </p>
               <div className="grid grid-cols-1 gap-2">
                 {thirdPartySites.map((site) => (
