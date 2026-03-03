@@ -7,6 +7,7 @@ import { smartFetch } from '../utils/platform';
 
 const DATA_SOURCES = {
   cloud: import.meta.env.VITE_DATA_API_URL || "https://data.tanshilong.com/data", // 宝塔后端 (最高优先级)
+  cloud: import.meta.env.VITE_DATA_CLOUD_URL || "https://data.tanshilong.com/data", // 云端数据源 (最高优先级)
   static: "/data" // Vercel/本地 静态目录 (同步 Git)
 };
 

@@ -127,10 +127,10 @@ export const useShareFunctions = (
     if (!activeTemplate) return "";
 
     const compressed = compressTemplate(activeTemplate, banks, categories, templates);
-    // 修正：在 Tauri 环境下强制使用官网域名作为分享基准
-    // 使用更健壮的检测方式
-    const isTauri = !!(window.__TAURI_INTERNALS__ || window.__TAURI_IPC__ || window.location.protocol === 'tauri:');
-    const base = PUBLIC_SHARE_URL || (isTauri ? 'https://aipromptfill.com' : (window.location.origin + window.location.pathname));
+  // 修正：在 Tauri 环境下强制使用官网域名作为分享基准
+  // 使用更健壮的检测方式
+  const isTauri = !!(window.__TAURI_INTERNALS__ || window.__TAURI_IPC__ || window.location.protocol === 'tauri:');
+  const base = PUBLIC_SHARE_URL || (isTauri ? 'https://aipromptfill.com' : (window.location.origin + window.location.pathname));
 
     if (!compressed) return base;
 
@@ -533,9 +533,9 @@ export const useShareFunctions = (
         }
       }
 
-      const isTauri = !!(window.__TAURI_INTERNALS__ || window.__TAURI_IPC__ || window.location.protocol === 'tauri:');
-      const base = PUBLIC_SHARE_URL || (isTauri ? 'https://aipromptfill.com' : (window.location.origin + window.location.pathname));
-      const fullUrl = `${base}${base.endsWith('/') ? '' : '/'}#/share?share=${finalShareData || compressed}`;
+  const isTauri = !!(window.__TAURI_INTERNALS__ || window.__TAURI_IPC__ || window.location.protocol === 'tauri:');
+  const base = PUBLIC_SHARE_URL || (isTauri ? 'https://aipromptfill.com' : (window.location.origin + window.location.pathname));
+  const fullUrl = `${base}${base.endsWith('/') ? '' : '/'}#/share?share=${finalShareData || compressed}`;
 
       // --- 直接复制到剪贴板 ---
       const success = await copyToClipboard(fullUrl);
@@ -593,11 +593,11 @@ export const useShareFunctions = (
   const currentShareUrl = useMemo(() => {
     if (!activeTemplate) return null;
     
-    // 如果短码获取成功，拼装短链
-    if (prefetchedShortCode) {
-      const isTauri = !!(window.__TAURI_INTERNALS__ || window.__TAURI_IPC__ || window.location.protocol === 'tauri:');
-      const base = PUBLIC_SHARE_URL || (isTauri ? 'https://aipromptfill.com' : (window.location.origin + window.location.pathname));
-      return `${base}${base.endsWith('/') ? '' : '/'}#/share?share=${prefetchedShortCode}`;
+  // 如果短码获取成功，拼装短链
+  if (prefetchedShortCode) {
+    const isTauri = !!(window.__TAURI_INTERNALS__ || window.__TAURI_IPC__ || window.location.protocol === 'tauri:');
+    const base = PUBLIC_SHARE_URL || (isTauri ? 'https://aipromptfill.com' : (window.location.origin + window.location.pathname));
+    return `${base}${base.endsWith('/') ? '' : '/'}#/share?share=${prefetchedShortCode}`;
     }
     
     // 如果不在加载中，说明获取可能失败了，返回长链接
