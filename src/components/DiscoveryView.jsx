@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+
+// QR state will be used for join chat popup
 import {
-  ImageIcon, ArrowUpRight, Search, Plus, Play, ChevronDown, ChevronUp
+  ImageIcon, ArrowUpRight, Search, Plus, Play, ChevronDown, ChevronUp, X
 } from 'lucide-react';
 import { getLocalized } from '../utils/helpers';
 import { PremiumButton } from './PremiumButton';
@@ -217,6 +219,7 @@ export const DiscoveryView = React.memo(({
     const [columnCount, setColumnCount] = useState(1);
     const [columnGap, setColumnGap] = useState(20); // Default to gap-5 (20px)
     const [isMobileTagsExpanded, setIsMobileTagsExpanded] = useState(false); // 手机端顶栏标签行默认折叠
+    const [showWechatQR, setShowWechatQR] = useState(false); // 控制交流二维码弹窗
   
     useEffect(() => {
       const getColumnInfo = () => {
@@ -555,18 +558,41 @@ export const DiscoveryView = React.memo(({
                       <div className={`w-1 h-1 rounded-full ${isDarkMode ? 'bg-gray-600' : 'bg-gray-400'}`} />
                       <p>公众号：角落工作室</p>
                       <div className={`w-1 h-1 rounded-full ${isDarkMode ? 'bg-gray-600' : 'bg-gray-400'}`} />
-                      <p>Wechat: tanshilongmario</p>
-                      <button 
-                          onClick={() => openExternalLink('https://github.com/TanShilongMario/PromptFill/')}
-                          className={`ml-2 inline-flex items-center justify-center w-6 h-6 rounded-full text-white transition-all duration-300 hover:scale-110 shadow-lg ${isDarkMode ? 'bg-gray-700 hover:bg-orange-500' : 'bg-gray-800 hover:bg-orange-500'}`}
-                      >
-                          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                              <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
-                          </svg>
-                      </button>
+                      <p className="cursor-pointer" onClick={() => setShowWechatQR(true)}>{t('join_chat')}</p>
+                      {/* github link removed */}
                   </div>
               </div>
           </footer>
+
+      {/* WeChat QR Popover */}
+      {showWechatQR && (
+        <div 
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-300"
+          onClick={() => setShowWechatQR(false)}
+        >
+          <div 
+            className={`p-8 rounded-[32px] shadow-2xl border relative animate-in zoom-in-95 duration-300 ${isDarkMode ? 'bg-[#242120] border-white/5 shadow-black/50' : 'bg-white border-white/60'}`}
+            onClick={e => e.stopPropagation()}
+          >
+            <button 
+              onClick={() => setShowWechatQR(false)}
+              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-900 transition-colors"
+            >
+              <X size={20} />
+            </button>
+            <div className="flex flex-col items-center">
+              <div className={`w-48 h-48 rounded-2xl overflow-hidden mb-4 border p-2 ${isDarkMode ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
+                <img 
+                  src="/wechat.png" 
+                  alt="Join QR Code" 
+                  className="w-full h-full object-contain rounded-lg"
+                />
+              </div>
+              <p className={`text-sm font-black mb-1 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>扫码加入交流</p>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </main>
   );
